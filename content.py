@@ -1,7 +1,7 @@
 """Editable content validation and source-grounded practice explanation drafts."""
 import json,re
 from pathlib import Path
-from grading import KEY
+from grading import KEY, RELATIONSHIP_EXPECTED
 ROOT=Path(__file__).resolve().parent
 TOPICS=json.loads((ROOT/'reference_topics.json').read_text())
 def default_exam():
@@ -10,7 +10,7 @@ def default_exam():
   q['kind']='choice' if q['options'] else 'essay'
   if q['options']:q['correct']=KEY[q['id']-1]
   else:
-   q['rubric']='international';q['expected']={'government':'북한 정부와 지속적으로 대화하고 외교 관계 및 경제 교류·협력을 위해 노력한다.','citizen':'북한을 바로 알고 같은 민족임을 이해하며 정부에 대화를 요구하고 연구·홍보·교육을 한다.'}
+   q['rubric']='relationship_broad';q['expected']=dict(RELATIONSHIP_EXPECTED)
    q['keywords']={'government':['대화','외교','경제','협상','회담'],'citizen':['북한','민족','연구','홍보','교육','대화']}
  return questions
 

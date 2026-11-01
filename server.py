@@ -7,7 +7,7 @@ import os, sqlite3, json, secrets, hashlib, hmac, time, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from http.cookies import SimpleCookie
-from grading import grade, FIELDS
+from grading import grade, FIELDS, relationship_question, RELATIONSHIP_EXPECTED
 from content import default_exam, public_question, validate_question, clean_text, TOPICS, explanation_draft
 ROOT=Path(__file__).resolve().parent
 DATA=Path(os.environ.get('QUIZ_DATA_DIR',str(ROOT/'.data')));DATA.mkdir(parents=True,exist_ok=True)
@@ -60,6 +60,14 @@ def seed_content(db):
  if not db.execute("SELECT 1 FROM settings WHERE key='exam'").fetchone():put_setting(db,'exam',default_exam())
  if not db.execute("SELECT 1 FROM settings WHERE key='practice_seed_v1'").fetchone():
   existing=setting(db,'practice',[]);ids={q['id'] for q in existing};seed=json.loads((ROOT/'practice_seed.json').read_text());put_setting(db,'practice',existing+[q for q in seed if q['id'] not in ids]);put_setting(db,'practice_seed_v1',True)
+ # One-time migration of the current Q16 description, preserving later edits.
+ if not setting(db,'relationship_rubric_v2',False):
+  exam=setting(db,'exam',default_exam());changed=False
+  for question in exam:
+   if question['id']==16 and relationship_question(question):
+    question['rubric']='relationship_broad';question['expected']=dict(RELATIONSHIP_EXPECTED);changed=True
+  if changed:put_setting(db,'exam',exam)
+  put_setting(db,'relationship_rubric_v2',True)
  db.execute('UPDATE students SET exam_json=? WHERE exam_json IS NULL',(json.dumps(setting(db,'exam',default_exam()),ensure_ascii=False),))
 def student_exam(row):return json.loads(row['exam_json']) if row['exam_json'] else default_exam()
 
