@@ -1,4 +1,6 @@
 """Run with ADMIN_PASSWORD set. No external dependencies."""
+from contextlib import contextmanager
+from github_store import GitHubStore, StorageError
 import os, sqlite3, json, secrets, hashlib, hmac, time, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -26,9 +28,72 @@ with sqlite3.connect(DB) as db:
  columns={r[1] for r in db.execute('PRAGMA table_info(students)')}
  if 'essay_score' not in columns:db.execute('ALTER TABLE students ADD COLUMN essay_score INTEGER')
  if 'grade_note' not in columns:db.execute("ALTER TABLE students ADD COLUMN grade_note TEXT DEFAULT ''")
+ if 'created_at' not in columns:db.execute('ALTER TABLE students ADD COLUMN created_at REAL')
+ db.execute('UPDATE students SET created_at=COALESCE(updated,?) WHERE created_at IS NULL',(time.time(),))
 SESSIONS={};ATTEMPTS={};LOCK=threading.Lock()
 def connect():
  db=sqlite3.connect(DB);db.row_factory=sqlite3.Row;return db
+DATABASE_LOCK=threading.RLock()
+STORE=GitHubStore()
+if os.environ.get('RENDER') and not STORE.enabled:raise SystemExit('Set GITHUB_DATA_REPO and GITHUB_DATA_TOKEN before deploying on a temporary Render filesystem.')
+DIRTY=False
+PENDING_SUBMISSIONS=set()
+LAST_STORAGE_ERROR=False
+
+TABLE_COLUMNS={
+ 'classes':['id','name','code','opened'],
+ 'students':['rowid','token','class_id','student_id','name','answers','submitted','events','updated','essay_score','grade_note','created_at']
+}
+def snapshot(db):
+ return {'version':1,'savedAt':time.time(),**{table:[dict(r) for r in db.execute('SELECT '+','.join(cols)+' FROM '+table)] for table,cols in TABLE_COLUMNS.items()}}
+
+def persist(db):
+ global DIRTY,LAST_STORAGE_ERROR
+ STORE.save(snapshot(db));DIRTY=False;LAST_STORAGE_ERROR=False;PENDING_SUBMISSIONS.clear()
+
+# The remote snapshot is authoritative on startup. Never start empty after a remote failure.
+if STORE.enabled:
+ try:
+  saved=STORE.load()
+  with connect() as db:
+   if saved is not None:
+    for table,cols in TABLE_COLUMNS.items():
+     db.execute('DELETE FROM '+table)
+     for row in saved[table]:
+      db.execute('INSERT INTO '+table+'('+','.join(cols)+') VALUES('+','.join('?' for _ in cols)+')',[row.get(c) for c in cols])
+   db.commit();persist(db)
+ except StorageError as e:raise SystemExit(str(e)) from None
+
+def sync_worker():
+ global LAST_STORAGE_ERROR
+ while True:
+  time.sleep(60)
+  with DATABASE_LOCK:
+   with connect() as db:
+    if DIRTY:
+     try:persist(db)
+     except StorageError:LAST_STORAGE_ERROR=True
+if STORE.enabled:threading.Thread(target=sync_worker,daemon=True).start()
+
+@contextmanager
+def request_database(handler):
+ global DIRTY
+ with DATABASE_LOCK:
+  db=connect();handler._defer=True;handler._pending=None
+  try:
+   before=db.total_changes
+   yield db
+   changed=db.total_changes>before
+   if changed:DIRTY=True
+   db.commit()
+   # Classes, final submissions and manual grades must reach GitHub before success.
+   if STORE.enabled and handler._force_sync:persist(db)
+   handler._defer=False
+   if handler._pending:handler.send(*handler._pending)
+  except Exception:
+   db.rollback();handler._defer=False;handler._pending=None;raise
+  finally:db.close()
+
 class HTTPError(Exception):
  def __init__(self,status,message):self.status=status;self.message=message
 class Handler(BaseHTTPRequestHandler):
@@ -37,6 +102,7 @@ class Handler(BaseHTTPRequestHandler):
   self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff');self.send_header('Referrer-Policy','no-referrer');self.send_header('X-Frame-Options','DENY')
   self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
  def send(self,status,obj,cookie=None):
+  if getattr(self,'_defer',False):self._pending=(status,obj,cookie);return
   b=json.dumps(obj,ensure_ascii=False).encode();self.send_response(status);self.headers_common();self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Content-Length',str(len(b)))
   if cookie:self.send_header('Set-Cookie',cookie)
   self.end_headers();self.wfile.write(b)
@@ -59,6 +125,7 @@ class Handler(BaseHTTPRequestHandler):
  def handle_request(self,post):
   try:
    path=self.path.split('?')[0]
+   self._force_sync=post and path in ['/api/admin/classes','/api/admin/toggle','/api/admin/grade','/api/submit','/api/admin/delete']
    data={}
    if post:
     # Reject cross-origin browser writes, including login CSRF.
@@ -71,7 +138,7 @@ class Handler(BaseHTTPRequestHandler):
     data=json.loads(self.rfile.read(n))
     if not isinstance(data,dict):raise HTTPError(400,'잘못된 요청입니다.')
    if not post and path=='/health':return self.send(200,{'ok':True})
-   with connect() as db:
+   with request_database(self) as db:
     if post and path=='/api/admin/login':
      ip=self.client_address[0];now=time.time()
      with LOCK:
@@ -105,12 +172,21 @@ class Handler(BaseHTTPRequestHandler):
       if not student['submitted']:raise HTTPError(409,'제출 후 채점할 수 있습니다.')
       db.execute('UPDATE students SET essay_score=?,grade_note=? WHERE rowid=?',(score,note,record))
       return self.send(200,{'ok':True})
+     if post and path=='/api/admin/delete':
+      if data.get('confirm')!='DELETE':raise HTTPError(400,'삭제 확인이 필요합니다.')
+      if data.get('scope')=='student' and type(data.get('recordId')) is int:
+       count=db.execute('DELETE FROM students WHERE rowid=?',(data['recordId'],)).rowcount
+      elif data.get('scope')=='class' and isinstance(data.get('classId'),str):
+       db.execute('UPDATE classes SET opened=0 WHERE id=?',(data['classId'],))
+       count=db.execute('DELETE FROM students WHERE class_id=?',(data['classId'],)).rowcount
+      else:raise HTTPError(400,'삭제 대상을 선택하세요.')
+      return self.send(200,{'ok':True,'deleted':count})
      if not post and path=='/api/admin/status':
       classes=[dict(r) for r in db.execute('SELECT * FROM classes ORDER BY rowid')]
       students=[dict(r) for r in db.execute('SELECT rowid AS recordId,class_id,student_id,name,answers,submitted,events,updated,essay_score,grade_note FROM students ORDER BY updated DESC')]
       for s in students:
        s['answers']=json.loads(s['answers']);s['events']=json.loads(s['events']);s['grade']=grade(s['answers'],s['essay_score']) if s['submitted'] else None
-      return self.send(200,{'classes':classes,'students':students})
+      return self.send(200,{'classes':classes,'students':students,'storage':{'mode':'github' if STORE.enabled else 'local','pending':DIRTY,'error':LAST_STORAGE_ERROR}})
     if post and path=='/api/join':
      c=db.execute('SELECT * FROM classes WHERE code=?',(data.get('code'),)).fetchone()
      if not c:raise HTTPError(403,'응시 코드가 올바르지 않습니다.')
@@ -119,14 +195,16 @@ class Handler(BaseHTTPRequestHandler):
      if not all(isinstance(x,str) and x.strip() and len(x)<=40 for x in [sid,name]):raise HTTPError(400,'학번과 이름을 입력하세요 (40자 이내).')
      old=db.execute('SELECT * FROM students WHERE token=? AND class_id=?',(self.token('student'),c['id'])).fetchone()
      if old:return self.send(200,{'ok':True})
-     token=secrets.token_urlsafe(32);db.execute('INSERT INTO students(token,class_id,student_id,name,updated) VALUES(?,?,?,?,?)',(token,c['id'],sid.strip(),name.strip(),time.time()))
+     token=secrets.token_urlsafe(32);db.execute('INSERT INTO students(rowid,token,class_id,student_id,name,updated,created_at) VALUES(?,?,?,?,?,?,?)',(secrets.randbits(52),token,c['id'],sid.strip(),name.strip(),time.time(),time.time()))
      return self.send(200,{'ok':True},self.cookie('student',token))
     if not post and path=='/api/exam':
      s=self.student(db)
-     return self.send(200,{'questions':QUESTIONS if not s['submitted'] else [],'answers':{} if s['submitted'] else json.loads(s['answers']),'name':s['name'],'studentId':s['student_id'],'submitted':s['submitted']})
+     return self.send(200,{'questions':QUESTIONS if not s['submitted'] else [],'answers':{} if s['submitted'] else json.loads(s['answers']),'name':s['name'],'studentId':s['student_id'],'submitted':s['submitted'],'pendingSync':s['token'] in PENDING_SUBMISSIONS})
     if post and path in ['/api/answers','/api/submit','/api/event']:
      s=self.student(db)
-     if s['submitted']:raise HTTPError(409,'이미 제출한 답안입니다.')
+     if s['submitted']:
+      if path=='/api/submit' and data.get('answers')==json.loads(s['answers']):return self.send(200,{'ok':True})
+      raise HTTPError(409,'이미 제출한 답안입니다.')
      if path=='/api/event':
       kind=data.get('kind')
       if kind not in ['화면 이탈','복사 시도','인쇄 시도','캡처 단축키','전체 화면 종료']:raise HTTPError(400,'잘못된 기록입니다.')
@@ -148,6 +226,7 @@ class Handler(BaseHTTPRequestHandler):
        essay=answers.get('16')
        if isinstance(essay,dict) and any(not essay.get(k,'').strip() for k in FIELDS):raise HTTPError(400,'16번의 두 답안을 모두 작성해 주세요.')
        submitted=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())
+      if submitted and STORE.enabled:PENDING_SUBMISSIONS.add(s['token'])
       db.execute('UPDATE students SET answers=?,submitted=?,updated=? WHERE token=?',(json.dumps(answers,ensure_ascii=False),submitted,time.time(),s['token']))
      return self.send(200,{'ok':True})
    # Only these files are public. Never serve questions.json, SQLite, source, or legacy HTML.
@@ -155,6 +234,7 @@ class Handler(BaseHTTPRequestHandler):
    if not post and path in files:
     file=ROOT/files[path];b=file.read_bytes();self.send_response(200);self.headers_common();self.send_header('Content-Type',{'html':'text/html; charset=utf-8','js':'text/javascript; charset=utf-8','css':'text/css; charset=utf-8'}[file.suffix[1:]]);self.send_header('Content-Length',str(len(b)));self.end_headers();return self.wfile.write(b)
    raise HTTPError(404,'찾을 수 없습니다.')
+  except StorageError:self.send(503,{'error':'GitHub 보관을 확인하지 못했습니다. 잠시 후 다시 시도하세요. 답안은 이 서버에 임시 저장되어 있습니다.'})
   except HTTPError as e:self.send(e.status,{'error':e.message})
   except (ValueError,TypeError):self.send(400,{'error':'잘못된 요청입니다.'})
   except Exception:self.send(500,{'error':'서버 오류가 발생했습니다. 다시 시도하세요.'})

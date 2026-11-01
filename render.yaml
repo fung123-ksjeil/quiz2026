@@ -1,23 +1,21 @@
-# Review Render's current pricing before creating this service.
-# A paid persistent disk retains classes, submissions and manual grades.
+# Free web server; records are stored in a separate private GitHub repository.
+# Render may still request account/payment verification under its own policies.
 services:
   - type: web
     name: quiz2026
     runtime: python
-    plan: starter
-    buildCommand: python3 -m py_compile server.py grading.py
+    plan: free
+    buildCommand: python3 -m py_compile server.py grading.py github_store.py
     startCommand: python3 server.py
     healthCheckPath: /health
-    disk:
-      name: exam-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: HOST
         value: 0.0.0.0
       - key: COOKIE_SECURE
         value: "1"
-      - key: QUIZ_DATA_DIR
-        value: /var/data/quiz2026
       - key: ADMIN_PASSWORD
+        sync: false
+      - key: GITHUB_DATA_REPO
+        sync: false
+      - key: GITHUB_DATA_TOKEN
         sync: false
