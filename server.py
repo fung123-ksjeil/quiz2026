@@ -56,6 +56,17 @@ def setting(db,key,default):
  return json.loads(row['value']) if row else default
 
 def put_setting(db,key,value):db.execute('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)',(key,json.dumps(value,ensure_ascii=False)))
+def restore_password(db):
+ global SALT,PASSWORD_HASH
+ auth=setting(db,'admin_password',None)
+ if auth is None:return
+ try:
+  if auth['algorithm']!='pbkdf2-sha256' or auth['iterations']!=200000:raise ValueError()
+  salt=bytes.fromhex(auth['salt']);digest=bytes.fromhex(auth['hash'])
+  if len(salt)!=16 or len(digest)!=32:raise ValueError()
+ except (KeyError,TypeError,ValueError):raise StorageError('Stored administrator password settings are invalid.') from None
+ SALT=salt;PASSWORD_HASH=digest
+
 def seed_content(db):
  if not db.execute("SELECT 1 FROM settings WHERE key='exam'").fetchone():put_setting(db,'exam',default_exam())
  if not db.execute("SELECT 1 FROM settings WHERE key='practice_seed_v1'").fetchone():
@@ -111,10 +122,10 @@ if STORE.enabled:
      db.execute('DELETE FROM '+table)
      for row in saved.get(table,[]):
       db.execute('INSERT INTO '+table+'('+','.join(cols)+') VALUES('+','.join('?' for _ in cols)+')',[row.get(c) for c in cols])
-   seed_content(db);normalize_codes(db);db.commit();persist(db)
+   seed_content(db);normalize_codes(db);restore_password(db);db.commit();persist(db)
  except StorageError as e:raise SystemExit(str(e)) from None
 else:
- with connect() as db:seed_content(db);normalize_codes(db)
+ with connect() as db:seed_content(db);normalize_codes(db);restore_password(db)
 
 def sync_worker():
  global LAST_STORAGE_ERROR
@@ -136,10 +147,20 @@ def request_database(handler):
    before=db.total_changes
    yield db
    changed=db.total_changes>before
+   previous_dirty=DIRTY
    if changed:DIRTY=True
-   db.commit()
-   # Classes, final submissions and manual grades must reach GitHub before success.
-   if STORE.enabled and handler._force_sync:persist(db)
+   if handler._atomic_persist:
+    try:
+     if STORE.enabled:persist(db)
+     db.commit()
+    except Exception:
+     DIRTY=previous_dirty
+     raise
+   else:
+    db.commit()
+    # Classes, final submissions and manual grades must reach GitHub before success.
+    if STORE.enabled and handler._force_sync:persist(db)
+   if handler._after_commit:handler._after_commit(db)
    handler._defer=False
    if handler._pending_file:handler.send_file(*handler._pending_file)
    elif handler._pending:handler.send(*handler._pending)
@@ -181,6 +202,7 @@ class Handler(BaseHTTPRequestHandler):
  def handle_request(self,post):
   try:
    path=self.path.split('?')[0]
+   self._atomic_persist=post and path=='/api/admin/password';self._after_commit=None
    self._force_sync=post and path in ['/api/admin/classes','/api/admin/toggle','/api/admin/grade','/api/submit','/api/admin/delete','/api/admin/class-delete','/api/admin/class-code','/api/admin/exam','/api/admin/practice','/api/admin/practice/visibility']
    data={}
    if post:
@@ -208,6 +230,25 @@ class Handler(BaseHTTPRequestHandler):
      return self.send(200,{'ok':True},self.cookie('admin',token))
     if path.startswith('/api/admin/'):
      self.admin()
+     if post and path=='/api/admin/password':
+      current=data.get('currentPassword');new=data.get('newPassword');confirm=data.get('confirmPassword')
+      if not isinstance(current,str) or not 1<=len(current)<=1000:raise HTTPError(400,'현재 비밀번호를 입력하세요.')
+      if not isinstance(new,str) or not 6<=len(new)<=128 or not new.strip():raise HTTPError(400,'새 비밀번호는 6~128자로 입력하세요.')
+      if not isinstance(confirm,str) or new!=confirm:raise HTTPError(400,'새 비밀번호와 확인 값이 다릅니다.')
+      attempt_key='password-change:'+self.token('admin');now=time.time()
+      with LOCK:
+       attempts=[t for t in ATTEMPTS.get(attempt_key,[]) if now-t<600];ATTEMPTS[attempt_key]=attempts
+       if len(attempts)>=5:raise HTTPError(429,'현재 비밀번호 확인 시도가 많습니다. 10분 후 다시 시도하세요.')
+      if not hmac.compare_digest(hashlib.pbkdf2_hmac('sha256',current.encode(),SALT,200000),PASSWORD_HASH):
+       with LOCK:ATTEMPTS[attempt_key].append(now)
+       raise HTTPError(400,'현재 비밀번호가 올바르지 않습니다.')
+      salt=secrets.token_bytes(16);digest=hashlib.pbkdf2_hmac('sha256',new.encode(),salt,200000)
+      put_setting(db,'admin_password',{'algorithm':'pbkdf2-sha256','iterations':200000,'salt':salt.hex(),'hash':digest.hex()})
+      def activate_password(connection):
+       restore_password(connection)
+       with LOCK:SESSIONS.clear();ATTEMPTS.clear()
+      self._after_commit=activate_password
+      return self.send(200,{'ok':True,'reauthenticate':True},self.cookie('admin','',0))
      if post and path=='/api/admin/logout':
       with LOCK:SESSIONS.pop(self.token('admin'),None)
       return self.send(200,{'ok':True},self.cookie('admin','',0))
@@ -363,7 +404,7 @@ class Handler(BaseHTTPRequestHandler):
    if not post and path in files:
     file=ROOT/files[path];b=file.read_bytes();self.send_response(200);self.headers_common();self.send_header('Content-Type',{'html':'text/html; charset=utf-8','js':'text/javascript; charset=utf-8','css':'text/css; charset=utf-8'}[file.suffix[1:]]);self.send_header('Content-Length',str(len(b)));self.end_headers();return self.wfile.write(b)
    raise HTTPError(404,'찾을 수 없습니다.')
-  except StorageError:self.send(503,{'error':'GitHub 보관을 확인하지 못했습니다. 잠시 후 다시 시도하세요. 답안은 이 서버에 임시 저장되어 있습니다.'})
+  except StorageError:self.send(503,{'error':'비밀번호 저장을 확인하지 못했습니다. 현재 비밀번호를 유지합니다. 잠시 후 다시 시도하세요.' if self._atomic_persist else 'GitHub 보관을 확인하지 못했습니다. 잠시 후 다시 시도하세요. 답안은 이 서버에 임시 저장되어 있습니다.'})
   except HTTPError as e:self.send(e.status,{'error':e.message})
   except ValueError as e:self.send(400,{'error':str(e) if len(str(e))<200 else '잘못된 요청입니다.'})
   except TypeError:self.send(400,{'error':'잘못된 요청입니다.'})
