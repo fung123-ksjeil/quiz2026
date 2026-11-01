@@ -1,11 +1,12 @@
-# Free web server; records are stored in a separate private GitHub repository.
+# Free web server; encrypted records use the quiz-data branch of the same repository.
 # Render may still request account/payment verification under its own policies.
 services:
   - type: web
     name: quiz2026
     runtime: python
+    branch: main
     plan: free
-    buildCommand: python3 -m py_compile server.py grading.py github_store.py
+    buildCommand: pip install -r requirements.txt && python3 -m py_compile server.py grading.py github_store.py
     startCommand: python3 server.py
     healthCheckPath: /health
     envVars:
@@ -16,6 +17,8 @@ services:
       - key: ADMIN_PASSWORD
         sync: false
       - key: GITHUB_DATA_REPO
-        sync: false
+        value: fung123-ksjeil/quiz2026
       - key: GITHUB_DATA_TOKEN
         sync: false
+      - key: QUIZ_DATA_KEY
+        generateValue: true
