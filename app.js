@@ -12,7 +12,7 @@ function render(){
   const field=document.createElement('fieldset');field.id=`q${q.id}`;
   const legend=document.createElement('legend');
   const n=document.createElement('span');n.className='num';n.textContent=`QUESTION ${String(q.id).padStart(2,'0')}`;
-  const points=document.createElement('span');points.className='points';points.textContent=` [${q.points??(q.id===16?5:1)}점]`;
+  const points=document.createElement('span');points.className='points';points.textContent=` [${q.points??(q.id===16?5:1)}점]`;if(q.id===16&&!q.options.length&&(q.points??5)===5){points.classList.add('rubric-points');points.textContent='[5점 : 내용을 채우면 3점 / 적절한 답이 1개일 경우 4점 / 적절한 답이 2개일 경우 5점]';}
   legend.append(n,document.createTextNode(q.title),points);field.append(legend);
   const area=document.createElement('div');
   if(q.body){
