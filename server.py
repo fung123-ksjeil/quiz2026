@@ -156,7 +156,7 @@ class Handler(BaseHTTPRequestHandler):
  def handle_request(self,post):
   try:
    path=self.path.split('?')[0]
-   self._force_sync=post and path in ['/api/admin/classes','/api/admin/toggle','/api/admin/grade','/api/submit','/api/admin/delete','/api/admin/class-code','/api/admin/exam','/api/admin/practice','/api/admin/practice/visibility']
+   self._force_sync=post and path in ['/api/admin/classes','/api/admin/toggle','/api/admin/grade','/api/submit','/api/admin/delete','/api/admin/class-delete','/api/admin/class-code','/api/admin/exam','/api/admin/practice','/api/admin/practice/visibility']
    data={}
    if post:
     # Reject cross-origin browser writes, including login CSRF.
@@ -194,6 +194,15 @@ class Handler(BaseHTTPRequestHandler):
       if code and db.execute('SELECT 1 FROM classes WHERE code=?',(code,)).fetchone():raise HTTPError(409,'이미 사용 중인 응시 코드입니다.')
       db.execute('INSERT INTO classes(id,name,code) VALUES(?,?,?)',(secrets.token_hex(8),name.strip(),code or allocate_code(db)))
       return self.send(200,{'ok':True})
+     if post and path=='/api/admin/class-delete':
+      if data.get('confirm')!='DELETE_CLASS':raise HTTPError(400,'반 삭제 확인이 필요합니다.')
+      identifier=data.get('id')
+      if not isinstance(identifier,str) or not db.execute('SELECT 1 FROM classes WHERE id=?',(identifier,)).fetchone():raise HTTPError(404,'반을 찾을 수 없습니다.')
+      count=db.execute('SELECT COUNT(*) FROM students WHERE class_id=?',(identifier,)).fetchone()[0]
+      if type(data.get('expectedCount')) is not int or data['expectedCount']!=count:raise HTTPError(409,'학생 기록 수가 변경되었습니다. 새로고침 후 다시 확인해 주세요.')
+      if count and data.get('deleteRecords') is not True:raise HTTPError(409,'이 반에 학생 데이터가 있습니다. 데이터 삭제도 함께 확인해 주세요.')
+      db.execute('DELETE FROM students WHERE class_id=?',(identifier,));db.execute('DELETE FROM classes WHERE id=?',(identifier,))
+      return self.send(200,{'ok':True,'deletedRecords':count})
      if post and path=='/api/admin/class-code':
       code=data.get('code','')
       if not isinstance(code,str) or len(code)!=4 or not code.isascii() or not code.isdigit():raise HTTPError(400,'응시 코드는 4자리 숫자로 입력하세요.')
@@ -312,7 +321,7 @@ class Handler(BaseHTTPRequestHandler):
       db.execute('UPDATE students SET answers=?,submitted=?,updated=? WHERE token=?',(json.dumps(answers,ensure_ascii=False),submitted,time.time(),s['token']))
      return self.send(200,{'ok':True})
    # Only these files are public. Never serve questions.json, SQLite, source, or legacy HTML.
-   files={'/':'index.html','/admin':'admin.html','/practice':'practice.html','/app.js':'app.js','/admin.js':'admin.js','/editor.js':'editor.js','/practice.js':'practice.js','/style.css':'style.css'}
+   files={'/':'index.html','/admin':'admin.html','/admin/questions':'questions_admin.html','/practice':'practice.html','/app.js':'app.js','/admin.js':'admin.js','/editor.js':'editor.js','/practice.js':'practice.js','/style.css':'style.css'}
    if not post and path in files:
     file=ROOT/files[path];b=file.read_bytes();self.send_response(200);self.headers_common();self.send_header('Content-Type',{'html':'text/html; charset=utf-8','js':'text/javascript; charset=utf-8','css':'text/css; charset=utf-8'}[file.suffix[1:]]);self.send_header('Content-Length',str(len(b)));self.end_headers();return self.wfile.write(b)
    raise HTTPError(404,'찾을 수 없습니다.')

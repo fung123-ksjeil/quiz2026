@@ -49,6 +49,20 @@ class ContentMixin:
   after=json.loads(self.req(admin,'/api/admin/content')[1]);self.assertEqual(after['exam'][0]['correct'],2);self.assertEqual(len(after['exam']),17);self.assertEqual(len(after['practice']),31)
   rows=json.loads(self.req(admin,'/api/admin/status')[1])['students'];self.assertEqual(next(s for s in rows if s['student_id']=='2001')['grade']['total'],20)
   self.assertEqual(len(json.loads(self.req(student,'/api/practice')[1])['questions']),2)
+  self.assertEqual(self.req(student,'/api/admin/class-delete',{'id':c['id'],'expectedCount':2,'deleteRecords':True,'confirm':'DELETE_CLASS'})[0],401)
+  self.assertEqual(self.req(admin,'/api/admin/class-delete',{'id':c['id'],'expectedCount':2,'deleteRecords':True})[0],400)
+  self.assertEqual(self.req(admin,'/api/admin/class-delete',{'id':c['id'],'expectedCount':0,'deleteRecords':True,'confirm':'DELETE_CLASS'})[0],409)
+  self.assertEqual(self.req(admin,'/api/admin/class-delete',{'id':c['id'],'expectedCount':2,'deleteRecords':False,'confirm':'DELETE_CLASS'})[0],409)
+  self.assertEqual(len(json.loads(self.req(admin,'/api/admin/status')[1])['students']),2)
+  self.assertEqual(json.loads(self.req(admin,'/api/admin/class-delete',{'id':c['id'],'expectedCount':2,'deleteRecords':True,'confirm':'DELETE_CLASS'})[1])['deletedRecords'],2)
+  self.assertEqual(self.req(student,'/api/exam')[0],401)
+  self.assertEqual(self.req(admin,'/api/admin/classes',{'name':'빈 반','code':'9999'})[0],200)
+  empty=json.loads(self.req(admin,'/api/admin/status')[1])['classes'][0]
+  self.assertEqual(self.req(admin,'/api/admin/class-delete',{'id':empty['id'],'expectedCount':0,'deleteRecords':False,'confirm':'DELETE_CLASS'})[0],200)
+  self.proc.terminate();self.proc.wait();type(self).start()
+  self.assertEqual(self.req(admin,'/api/admin/login',{'password':self.password})[0],200)
+  clean=json.loads(self.req(admin,'/api/admin/status')[1]);self.assertEqual(clean['students'],[]);self.assertEqual(clean['classes'],[])
+  self.assertEqual(len(json.loads(self.req(admin,'/api/admin/content')[1])['exam']),17)
 class LocalContentTests(ContentMixin,base.ExamTests):
  test_lifecycle=None
 class GitHubContentTests(ContentMixin,remote.GitHubPersistenceTests):
