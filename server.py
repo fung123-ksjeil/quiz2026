@@ -1,7 +1,7 @@
 """Run with ADMIN_PASSWORD set. No external dependencies."""
 from contextlib import contextmanager
 from urllib.parse import parse_qs
-from score_export import workbook
+from score_export import workbook, format_submission
 from github_store import GitHubStore, StorageError
 import os, sqlite3, json, secrets, hashlib, hmac, time, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -68,6 +68,7 @@ def student_results(db,class_id=None):
  rows=db.execute(sql+(' WHERE class_id=?' if class_id is not None else '')+' ORDER BY updated DESC',(class_id,) if class_id is not None else ())
  students=[dict(r) for r in rows]
  for row in students:
+  row['submittedAtKst']=format_submission(row['submitted']) or None
   row['answers']=json.loads(row['answers']);row['events']=json.loads(row['events']);row['grade']=grade(row['answers'],row['essay_score'],student_exam(row),json.loads(row['manual_scores'] or '{}')) if row['submitted'] else None
   row['exam']=[{k:q[k] for k in ['id','options','points','essayFields'] if k in q} for q in student_exam(row)];row.pop('exam_json',None);row.pop('manual_scores',None)
  return students

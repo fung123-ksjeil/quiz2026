@@ -45,11 +45,11 @@ class ContentMixin:
   self.assertEqual(self.req(student,'/api/submit',{'answers':answers,'studentId':'002001','name':'수정한 이름'})[0],200)
   self.assertEqual(self.req(student,'/api/submit',{'answers':answers,'studentId':'002001','name':'제출 후 변경'})[0],409)
   new_answers={**answers,'1':2,str(added_id):1};self.assertEqual(self.req(new_student,'/api/submit',{'answers':new_answers})[0],200)
-  rows=json.loads(self.req(admin,'/api/admin/status')[1])['students'];old=next(s for s in rows if s['student_id']=='002001');new=next(s for s in rows if s['student_id']=='2002');self.assertEqual(old['grade']['total'],20);self.assertEqual(new['grade']['total'],22);self.assertEqual(old['name'],'수정한 이름')
+  rows=json.loads(self.req(admin,'/api/admin/status')[1])['students'];old=next(s for s in rows if s['student_id']=='002001');new=next(s for s in rows if s['student_id']=='2002');self.assertEqual(old['grade']['total'],20);self.assertEqual(new['grade']['total'],22);self.assertEqual(old['name'],'수정한 이름');self.assertRegex(old['submittedAtKst'],r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$')
   self.assertEqual(self.req(self.client(),'/api/admin/scores.xlsx')[0],401)
   export=self.req(admin,'/api/admin/scores.xlsx?classId='+c['id']);self.assertEqual(export[0],200)
   from test_scores import read_workbook
-  rows=read_workbook(export[1]);self.assertEqual(rows[0][:2],['학번','이름']);by_id={r[0]:r for r in rows[1:]};self.assertEqual(by_id['002001'][1],'수정한 이름');self.assertEqual(by_id['002001'][rows[0].index('총점')],20);self.assertEqual(by_id['2002'][rows[0].index('총점')],22)
+  rows=read_workbook(export[1]);self.assertEqual(rows[0][:2],['학번','이름']);by_id={r[0]:r for r in rows[1:]};self.assertEqual(by_id['002001'][1],'수정한 이름');self.assertEqual(by_id['002001'][rows[0].index('제출 시각 (한국 시간)')],old['submittedAtKst']);self.assertEqual(by_id['002001'][rows[0].index('총점')],20);self.assertEqual(by_id['2002'][rows[0].index('총점')],22)
   self.assertEqual(self.req(admin,'/api/admin/scores.xlsx?classId=missing')[0],404)
   self.proc.terminate();self.proc.wait();type(self).start()
   self.assertEqual(self.req(admin,'/api/admin/login',{'password':self.password})[0],200)

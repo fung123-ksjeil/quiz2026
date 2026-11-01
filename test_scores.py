@@ -1,6 +1,6 @@
 import io,zipfile,unittest
 from xml.etree import ElementTree as ET
-from score_export import workbook
+from score_export import workbook,format_submission
 from grading import grade
 NS={'s':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
 def read_workbook(data):
@@ -15,15 +15,21 @@ def read_workbook(data):
    value=text.text or '' if text is not None else None
    cells[position]=value if cell.get('t')=='inlineStr' or value is None else float(value) if '.' in value else int(value)
   rows.append([cells.get(i) for i in range(1,max(cells,default=0)+1)])
- return rows
+ width=len(rows[0]) if rows else 0
+ return [row+[None]*(width-len(row)) for row in rows]
 class ScoreExportTests(unittest.TestCase):
  def test_real_xlsx_text_safety_and_partial_scores(self):
   exam=[{'id':1,'options':['a','b'],'correct':1,'points':1},{'id':2,'options':['a','b'],'correct':2,'points':2},{'id':16,'options':[],'points':5,'rubric':'international'}]
   answers={'1':1,'2':1,'16':{'government':'작성','citizen':'작성'}}
-  students=[{'recordId':1,'class_id':'a','student_id':'00123','name':'=1+1','exam':exam,'submitted':'now','grade':grade(answers,4,exam)},{'recordId':2,'class_id':'a','student_id':'00124','name':'미제출 학생','exam':exam,'submitted':None,'grade':None}]
-  data=workbook(students,[{'id':'a','name':'3-1'}]);rows=read_workbook(data);self.assertEqual(rows[1][:2],['00123','=1+1']);self.assertEqual(rows[1][2:5],['O','X','부분정답 (4/5점)']);self.assertEqual(rows[1][5],5);self.assertEqual(rows[2][2:5],['미제출']*3);self.assertIsNone(rows[2][5])
+  students=[{'recordId':1,'class_id':'a','student_id':'00123','name':'=1+1','exam':exam,'submitted':'2026-10-31T15:04:09Z','grade':grade(answers,4,exam)},{'recordId':2,'class_id':'a','student_id':'00124','name':'미제출 학생','exam':exam,'submitted':None,'grade':None}]
+  data=workbook(students,[{'id':'a','name':'3-1'}]);rows=read_workbook(data);self.assertEqual(rows[1][:2],['00123','=1+1']);self.assertEqual(rows[1][2:5],['O','X','부분정답 (4/5점)']);self.assertEqual(rows[1][5],5);self.assertEqual(rows[2][2:5],['미제출']*3);self.assertIsNone(rows[2][5]);self.assertEqual(rows[1][rows[0].index('제출 시각 (한국 시간)')],'2026-11-01 00:04:09');self.assertIsNone(rows[2][rows[0].index('제출 시각 (한국 시간)')])
   with zipfile.ZipFile(io.BytesIO(data)) as z:
    root=ET.fromstring(z.read('xl/worksheets/sheet1.xml'));self.assertFalse(root.findall('.//s:f',NS));self.assertEqual(root.find('.//s:c[@r="A2"]',NS).get('t'),'inlineStr')
+ def test_submission_timezone_and_seconds(self):
+  self.assertEqual(format_submission('2026-10-31T15:00:01Z'),'2026-11-01 00:00:01')
+  self.assertEqual(format_submission('2026-11-01T00:04:09+09:00'),'2026-11-01 00:04:09')
+  self.assertEqual(format_submission(None),'')
+  self.assertEqual(format_submission('invalid'),'확인 필요')
  def test_empty_workbook_headers(self):
   rows=read_workbook(workbook([],[],[{'id':1}]))
   self.assertEqual(rows[0][2],'1번 정오답');self.assertEqual(len(rows),1)

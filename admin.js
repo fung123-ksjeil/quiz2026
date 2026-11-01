@@ -11,6 +11,7 @@ async function refresh(force=false){try{const d=await api('/api/admin/status');l
   const c=d.classes.find(c=>c.id===s.class_id),row=el('section','');row.className='admin-card';
   const count=Object.entries(s.answers).filter(([id,a])=>typeof a==='object'?Object.values(a).some(v=>v.trim()):typeof a==='string'?a.trim():a).length;
   row.append(el('h3',`${c?.name||''} · ${s.student_id} ${s.name}`),el('p',`${s.submitted?'제출 완료':'응시 중'} · 작성 ${count}/${s.exam.length} · 이탈·제한 동작 기록 ${s.events.length}건`));
+  const submissionTime=el('p',s.submitted?`제출 시각: ${s.submittedAtKst} (한국 시간)`:'제출 시각: 미제출');submissionTime.className='submission-time';row.append(submissionTime);
   if(s.grade)row.append(el('p',`총점 ${s.grade.total}/${s.grade.maximum}점 · 객관식 ${s.grade.objective}/${s.grade.objectiveMaximum}점 · 서술형 ${s.grade.essay}/${s.grade.essayMaximum}점 (${s.grade.manual?'교사 수정 점수':'자동 제안 · 교사 확인 전'})`));
   const detail=el('details','');detail.append(el('summary','답안·채점 결과 및 기록 확인'));
   if(s.grade){

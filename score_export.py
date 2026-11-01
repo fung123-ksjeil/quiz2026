@@ -1,7 +1,17 @@
 """Generate a real XLSX workbook using standard-library OOXML only."""
 import io,re,zipfile
+from datetime import datetime,timedelta,timezone
 from xml.etree.ElementTree import Element,SubElement,tostring
 NS='http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+def format_submission(value):
+ if not value:return ''
+ if not isinstance(value,str):return '확인 필요'
+ try:
+  instant=datetime.fromisoformat(value.replace('Z','+00:00'))
+  if instant.tzinfo is None:instant=instant.replace(tzinfo=timezone.utc)
+  return instant.astimezone(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S')
+ except ValueError:return '확인 필요'
+
 def column(number):
  out=''
  while number:number,r=divmod(number-1,26);out=chr(65+r)+out
@@ -11,7 +21,7 @@ def sheet(rows):
  root=Element('worksheet',xmlns=NS)
  views=SubElement(root,'sheetViews');view=SubElement(views,'sheetView',workbookViewId='0');SubElement(view,'pane',xSplit='2',ySplit='1',topLeftCell='C2',activePane='bottomRight',state='frozen')
  cols=SubElement(root,'cols')
- for i in range(1,len(rows[0])+1):SubElement(cols,'col',min=str(i),max=str(i),width='16',customWidth='1')
+ for i in range(1,len(rows[0])+1):SubElement(cols,'col',min=str(i),max=str(i),width='26' if rows[0][i-1]=='제출 시각 (한국 시간)' else '16',customWidth='1')
  data=SubElement(root,'sheetData')
  for ri,values in enumerate(rows,1):
   row=SubElement(data,'row',r=str(ri),ht='28' if ri==1 else '23',customHeight='1')
@@ -26,7 +36,7 @@ def sheet(rows):
 
 def workbook(students,classes,empty_exam=None):
  question_ids=sorted({q['id'] for s in students for q in s['exam']} or {q['id'] for q in (empty_exam or [])})
- rows=[['학번','이름']+[f'{i}번 정오답' for i in question_ids]+['총점','만점','반','제출 상태','서술형 채점 상태']]
+ rows=[['학번','이름']+[f'{i}번 정오답' for i in question_ids]+['총점','만점','반','제출 상태','서술형 채점 상태','제출 시각 (한국 시간)']]
  names={c['id']:c['name'] for c in classes}
  for s in sorted(students,key=lambda s:(names.get(s['class_id'],''),s['student_id'],s['name'],s['recordId'])):
   g=s['grade'];values={}
@@ -37,8 +47,8 @@ def workbook(students,classes,empty_exam=None):
     values[item['id']]=f"{result} ({item['score']}/{item['maximum']}점)"
   present={q['id'] for q in s['exam']}
   marks=[values.get(i,'미제출') if i in present else '해당 없음' for i in question_ids]
-  rows.append([s['student_id'],s['name']]+marks+[g['total'] if g else None,g['maximum'] if g else None,names.get(s['class_id'],''),'제출 완료' if s['submitted'] else '미제출',('교사 수정' if g['manual'] else '자동 제안 · 교사 확인 전') if g and g['essays'] else ''])
- notes=[['안내'],['객관식: O=정답, X=오답. 서술형: 획득 점수에 따라 O/X/부분정답 및 점수를 표시합니다.'],['총점에는 현재 서술형 점수가 반영됩니다. 자동 제안 상태인 학생은 교사가 검토해 주세요.'],['미제출 학생의 점수는 빈칸입니다. 해당 없음은 그 학생의 시험 버전에 없는 문항입니다.'],['학번과 이름은 텍스트로 보관하여 앞자리 0과 수식처럼 보이는 문자를 그대로 유지합니다.']]
+  rows.append([s['student_id'],s['name']]+marks+[g['total'] if g else None,g['maximum'] if g else None,names.get(s['class_id'],''),'제출 완료' if s['submitted'] else '미제출',('교사 수정' if g['manual'] else '자동 제안 · 교사 확인 전') if g and g['essays'] else '',format_submission(s['submitted']) or None])
+ notes=[['안내'],['제출 시각은 서버가 기록한 최종 제출 시각을 한국 시간(UTC+9)으로 변환하여 날짜·시·분·초까지 표시합니다. 미제출은 빈칸입니다.'],['객관식: O=정답, X=오답. 서술형: 획득 점수에 따라 O/X/부분정답 및 점수를 표시합니다.'],['총점에는 현재 서술형 점수가 반영됩니다. 자동 제안 상태인 학생은 교사가 검토해 주세요.'],['미제출 학생의 점수는 빈칸입니다. 해당 없음은 그 학생의 시험 버전에 없는 문항입니다.'],['학번과 이름은 텍스트로 보관하여 앞자리 0과 수식처럼 보이는 문자를 그대로 유지합니다.']]
  output=io.BytesIO()
  with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as z:
   z.writestr('[Content_Types].xml','''<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>''')
