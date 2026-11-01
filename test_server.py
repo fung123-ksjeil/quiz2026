@@ -31,6 +31,7 @@ class ExamTests(unittest.TestCase):
   self.assertEqual(self.req(admin,'/api/admin/login',{'password':self.password})[0],200)
   for name in ['1반','2반']:self.assertEqual(self.req(admin,'/api/admin/classes',{'name':name})[0],200)
   d=json.loads(self.req(admin,'/api/admin/status')[1]);c1,c2=d['classes']
+  self.assertRegex(c1['code'],r'^[0-9]{4}$');self.assertRegex(c2['code'],r'^[0-9]{4}$');self.assertNotEqual(c1['code'],c2['code'])
   join={'code':c1['code'],'studentId':'1001','name':'학생'}
   self.assertEqual(self.req(student,'/api/join',join)[0],423)
   self.assertEqual(self.req(student,'/api/exam')[0],401)
@@ -90,4 +91,18 @@ class GradingTests(unittest.TestCase):
   key=[1,1,5,3,1,2,5,4,3,1,1,5,4,2,2];answers={str(i+1):a for i,a in enumerate(key)};answers['16']={'government':'외교 관계를 맺는다','citizen':'정부에 평화를 위한 대화를 요구한다'}
   self.assertEqual(grade(answers)['total'],20)
   self.assertEqual(grade(answers,0)['total'],15)
+class CodeMigrationTests(unittest.TestCase):
+ def test_legacy_code_preserves_class_and_answers(self):
+  import sqlite3
+  with tempfile.TemporaryDirectory() as folder:
+   env={**os.environ,'ADMIN_PASSWORD':secrets.token_urlsafe(20),'QUIZ_DATA_DIR':folder,'GITHUB_DATA_REPO':'','GITHUB_DATA_TOKEN':'','RENDER':''}
+   subprocess.run(['python3','-c','import server'],cwd=Path(__file__).parent,env=env,check=True)
+   with sqlite3.connect(Path(folder)/'exam.sqlite3') as db:
+    db.execute("INSERT INTO classes VALUES('legacy','기존 반','long-old-code',1)")
+    db.execute("INSERT INTO classes VALUES('valid','유지할 반','1234',0)")
+    db.execute("INSERT INTO students(token,class_id,student_id,name,answers,created_at) VALUES(?,?,?,?,?,?)",('test','legacy','1001','학생',json.dumps({'1':2}),0))
+   subprocess.run(['python3','-c','import server'],cwd=Path(__file__).parent,env=env,check=True)
+   with sqlite3.connect(Path(folder)/'exam.sqlite3') as db:
+    codes=dict(db.execute('SELECT id,code FROM classes'));self.assertRegex(codes['legacy'],r'^[0-9]{4}$');self.assertEqual(codes['valid'],'1234');self.assertNotEqual(codes['legacy'],'1234')
+    self.assertEqual(json.loads(db.execute("SELECT answers FROM students WHERE token='test'").fetchone()[0]),{'1':2})
 if __name__=='__main__':unittest.main(verbosity=2)

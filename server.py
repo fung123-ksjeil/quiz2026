@@ -47,6 +47,18 @@ TABLE_COLUMNS={
 def snapshot(db):
  return {'version':1,'savedAt':time.time(),**{table:[dict(r) for r in db.execute('SELECT '+','.join(cols)+' FROM '+table)] for table,cols in TABLE_COLUMNS.items()}}
 
+def allocate_code(db):
+ used={r['code'] for r in db.execute('SELECT code FROM classes')}
+ available=[str(n) for n in range(1000,10000) if str(n) not in used]
+ if not available:raise StorageError('No four-digit class codes remain.')
+ return secrets.choice(available)
+
+def normalize_codes(db):
+ # Preserve class IDs and existing four-digit codes; update only legacy codes.
+ for row in list(db.execute('SELECT id,code FROM classes')):
+  if len(row['code'])!=4 or any(c not in '0123456789' for c in row['code']):
+   db.execute('UPDATE classes SET code=? WHERE id=?',(allocate_code(db),row['id']))
+
 def persist(db):
  global DIRTY,LAST_STORAGE_ERROR
  STORE.save(snapshot(db));DIRTY=False;LAST_STORAGE_ERROR=False;PENDING_SUBMISSIONS.clear()
@@ -61,8 +73,10 @@ if STORE.enabled:
      db.execute('DELETE FROM '+table)
      for row in saved[table]:
       db.execute('INSERT INTO '+table+'('+','.join(cols)+') VALUES('+','.join('?' for _ in cols)+')',[row.get(c) for c in cols])
-   db.commit();persist(db)
+   normalize_codes(db);db.commit();persist(db)
  except StorageError as e:raise SystemExit(str(e)) from None
+else:
+ with connect() as db:normalize_codes(db)
 
 def sync_worker():
  global LAST_STORAGE_ERROR
@@ -158,7 +172,7 @@ class Handler(BaseHTTPRequestHandler):
      if post and path=='/api/admin/classes':
       name=data.get('name','')
       if not isinstance(name,str) or not name.strip() or len(name)>60:raise HTTPError(400,'반 이름을 입력하세요 (60자 이내).')
-      db.execute('INSERT INTO classes(id,name,code) VALUES(?,?,?)',(secrets.token_hex(8),name.strip(),secrets.token_urlsafe(12)))
+      db.execute('INSERT INTO classes(id,name,code) VALUES(?,?,?)',(secrets.token_hex(8),name.strip(),allocate_code(db)))
       return self.send(200,{'ok':True})
      if post and path=='/api/admin/toggle':
       if type(data.get('opened')) is not bool:raise HTTPError(400,'공개 상태가 올바르지 않습니다.')
