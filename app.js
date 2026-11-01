@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id);let questions=[],state={answers:{}},acti
 async function api(url,data){const r=await fetch(url,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined,cache:'no-store'});const v=await r.json();if(!r.ok){const e=new Error(v.error);e.status=r.status;throw e;}return v;}
 function hidePaper(message){active=false;rendered=false;$('questions').replaceChildren();$('nav').replaceChildren();$('workspace').hidden=true;$('entry').hidden=true;$('locked').hidden=false;$('lockMessage').textContent=message;$('privacy').hidden=true;}
 function hasAnswer(q){const a=state.answers[q.id];return q.options.length?Number.isInteger(a):q.essayFields?q.essayFields.every(f=>typeof a?.[f.key]==='string'&&a[f.key].trim()):typeof a==='string'&&!!a.trim();}
-function progress(){const count=questions.filter(hasAnswer).length;$('count').textContent=`${count} / 16문항 작성`;$('progress').value=count;questions.forEach(q=>$(`nav${q.id}`)?.classList.toggle('done',hasAnswer(q)));}
+function progress(){const count=questions.filter(hasAnswer).length;$('count').textContent=`${count} / ${questions.length}문항 작성`;$('progress').max=questions.length;$('progress').value=count;questions.forEach(q=>$(`nav${q.id}`)?.classList.toggle('done',hasAnswer(q)));}
 function save(){dirty=true;$('saveStatus').textContent='저장 중…';progress();clearTimeout(timer);timer=setTimeout(flush,350);}
 async function flush(){if(!dirty||saving||!active)return;saving=true;const snapshot=JSON.stringify(state.answers);try{await api('/api/answers',{answers:JSON.parse(snapshot)});dirty=JSON.stringify(state.answers)!==snapshot;$('saveStatus').textContent=dirty?'저장 중…':'서버 임시 저장 완료 · 최종 제출 시 보관';}catch(e){$('saveStatus').textContent='저장 실패 · 연결 후 자동 재시도';if([401,423,409].includes(e.status))hidePaper(e.message);}finally{saving=false;if(dirty&&active)timer=setTimeout(flush,1500);}}
 function render(){
@@ -17,7 +17,7 @@ function render(){
   const area=document.createElement('div');
   if(q.body){
    const passage=document.createElement('p');passage.className='passage';passage.textContent=q.body;
-   if(q.id===12){const parts=q.body.split('이것');passage.textContent=parts[0];const u=document.createElement('u');u.textContent='이것';passage.append(u,document.createTextNode(parts.slice(1).join('이것')));}
+   if(q.id===12&&q.body.includes('이것')){const parts=q.body.split('이것');passage.textContent=parts[0];const u=document.createElement('u');u.textContent='이것';passage.append(u,document.createTextNode(parts.slice(1).join('이것')));}
    area.append(passage);
   }
   if(q.options.length){
@@ -42,7 +42,7 @@ function render(){
    if(typeof current==='string'&&current.trim()){const legacy=document.createElement('p');legacy.className='passage';legacy.textContent='이전에 작성한 통합 답안: '+current+' — 아래 두 입력란으로 나누어 작성해 주세요.';area.append(legacy);}
    for(const f of q.essayFields){
     const label=document.createElement('label');label.className='essay-label';label.textContent=f.label;
-    const input=document.createElement('textarea');input.name=`answer${q.id}_${f.key}`;input.value=typeof current==='object'?current?.[f.key]||'':'';input.maxLength=10000;input.placeholder=f.key==='government'?'정부(국가) 차원의 노력을 서술하세요.':'시민단체(시민) 차원의 노력을 서술하세요.';
+    const input=document.createElement('textarea');input.name=`answer${q.id}_${f.key}`;input.value=typeof current==='object'?current?.[f.key]||'':'';input.maxLength=10000;input.placeholder=f.label+'에 대한 답안을 입력하세요.';
     input.addEventListener('input',()=>{if(!state.answers[q.id]||typeof state.answers[q.id]!=='object')state.answers[q.id]={};state.answers[q.id][f.key]=input.value;save();});label.append(input);area.append(label);
    }
   }
@@ -66,3 +66,5 @@ document.addEventListener('paste',e=>{if(active)e.preventDefault();});
 document.addEventListener('keydown',e=>{if(!active)return;const k=e.key.toLowerCase();if((e.ctrlKey||e.metaKey)&&['c','x','s','p','u'].includes(k)||e.key==='PrintScreen'){e.preventDefault();record(e.key==='PrintScreen'?'캡처 단축키':k==='p'?'인쇄 시도':'복사 시도');}});
 window.addEventListener('beforeprint',()=>{if(active)record('인쇄 시도');});window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 setInterval(load,3000);load();
+
+api('/api/catalog').then(d=>{$('choiceCount').textContent=`객관식 ${d.choice}문항`;$('essayCount').textContent=`서술형 ${d.essay}문항`;}).catch(()=>{});

@@ -1,0 +1,422 @@
+[
+  {
+    "id": "unit6-ox-01",
+    "statement": "국제 사회는 여러 나라가 서로 교류하고 의존하면서 공존하는 사회이다.",
+    "correct": "O",
+    "topicId": "meaning",
+    "explanation": "정답은 O입니다. 국제 사회는 국가 간 교류·의존·공존을 바탕으로 형성됩니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-02",
+    "statement": "국제 사회는 주권을 가진 국가들을 기본 단위로 한다.",
+    "correct": "O",
+    "topicId": "meaning",
+    "explanation": "정답은 O입니다. 국제 사회의 기본 단위는 주권 국가입니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-03",
+    "statement": "국제 사회에서는 정치와 경제 분야에서만 교류가 이루어진다.",
+    "correct": "X",
+    "topicId": "meaning",
+    "explanation": "정답은 X입니다. 교류는 정치·경제에만 한정되지 않고 사회·문화 등 여러 분야에서 이루어집니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-04",
+    "statement": "국제 사회의 국가들은 일반적으로 자국의 이익을 우선시한다.",
+    "correct": "O",
+    "topicId": "interest",
+    "explanation": "정답은 O입니다. 국가들은 자국의 이익을 기준으로 관계와 정책을 결정합니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-05",
+    "statement": "모든 국가는 현실에서도 국력과 상관없이 똑같은 영향력을 행사한다.",
+    "correct": "X",
+    "topicId": "power",
+    "explanation": "정답은 X입니다. 주권은 원칙적으로 평등하지만 현실에서는 국력에 따라 영향력에 차이가 있습니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-06",
+    "statement": "국제 사회에는 국가 간 갈등을 강제로 조정해 주는 중앙 정부가 존재한다.",
+    "correct": "X",
+    "topicId": "central",
+    "explanation": "정답은 X입니다. 국제 사회에는 중앙 정부가 없습니다. 국제기구가 곧 세계 정부라는 뜻도 아닙니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-07",
+    "statement": "국제법과 국제기구, 세계 여론은 국가들의 행동에 일정한 제약을 줄 수 있다.",
+    "correct": "O",
+    "topicId": "central",
+    "explanation": "정답은 O입니다. 중앙 정부가 없더라도 국제법·국제기구·세계 여론이 질서 유지에 기여합니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-08",
+    "statement": "국제 연합(UN)은 각국 정부를 회원으로 하는 정부 간 국제기구이다.",
+    "correct": "O",
+    "topicId": "igo",
+    "explanation": "정답은 O입니다. 국제 연합은 정부 간 국제기구의 대표적인 사례입니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 106,
+      "pdfPage": 5
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-09",
+    "statement": "그린피스는 각국 정부를 회원으로 하는 정부 간 국제기구이다.",
+    "correct": "X",
+    "topicId": "ngo",
+    "explanation": "정답은 X입니다. 그린피스는 개인과 민간단체가 참여하는 국제 비정부 기구입니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 106,
+      "pdfPage": 5
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-10",
+    "statement": "국경 없는 의사회는 국경을 넘어 긴급 구호와 의료 활동을 한다.",
+    "correct": "O",
+    "topicId": "ngo",
+    "explanation": "정답은 O입니다. 국경 없는 의사회는 의료·긴급 구호 활동을 펼치는 국제 비정부 기구입니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 106,
+      "pdfPage": 5
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-11",
+    "statement": "다국적 기업은 한 나라에 본사를 두고 여러 나라에서 생산과 판매 활동을 한다.",
+    "correct": "O",
+    "topicId": "multinational",
+    "explanation": "정답은 O입니다. 여러 나라의 자회사·공장을 통해 국제적 규모로 생산·판매하는 기업입니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 107,
+      "pdfPage": 6
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-12",
+    "statement": "다국적 기업의 활동은 국가 간 교류와 상호 의존성을 높일 수 있다.",
+    "correct": "O",
+    "topicId": "multinational",
+    "explanation": "정답은 O입니다. 국경을 넘는 경영 활동은 국가 간 교류와 상호 의존성을 확대합니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 107,
+      "pdfPage": 6
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-13",
+    "statement": "세계화가 진행되면서 국가 간 경쟁은 점점 약해지고 있다.",
+    "correct": "X",
+    "topicId": "competition",
+    "explanation": "정답은 X입니다. 자료에서는 세계화로 경쟁이 더 치열해지고 다양한 분야로 확대된다고 설명합니다.",
+    "source": {
+      "file": "6-2국제사회의모습과공존노력.pdf",
+      "page": 109,
+      "pdfPage": 2
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-14",
+    "statement": "국제 사회의 갈등은 자원, 민족, 종교, 환경 문제 등 다양한 원인에서 발생한다.",
+    "correct": "O",
+    "topicId": "resources",
+    "explanation": "정답은 O입니다. 자원 확보, 민족·종교, 환경 문제 등이 다양한 갈등 원인입니다.",
+    "source": {
+      "file": "6-2국제사회의모습과공존노력.pdf",
+      "page": 109,
+      "pdfPage": 2
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-15",
+    "statement": "국제 사회의 빈곤과 환경 문제는 특정 국가 혼자만의 노력으로 모두 해결할 수 있다.",
+    "correct": "X",
+    "topicId": "cooperation",
+    "explanation": "정답은 X입니다. 국경을 넘어 영향을 주는 문제이므로 국제적인 이해와 협력이 필요합니다.",
+    "source": {
+      "file": "6-2국제사회의모습과공존노력.pdf",
+      "page": 110,
+      "pdfPage": 3
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-16",
+    "statement": "외교는 국가의 정치적 목적이나 이익을 평화적으로 실현하기 위한 활동이다.",
+    "correct": "O",
+    "topicId": "diplomacy",
+    "explanation": "정답은 O입니다. 외교의 핵심은 국가의 목적과 이익을 평화적인 방법으로 실현하는 것입니다.",
+    "source": {
+      "file": "6-2국제사회의모습과공존노력.pdf",
+      "page": 111,
+      "pdfPage": 4
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-17",
+    "statement": "세계 시민은 다양한 문화를 편견 없이 이해하고 존중해야 한다.",
+    "correct": "O",
+    "topicId": "citizenship",
+    "explanation": "정답은 O입니다. 열린 마음으로 문화 다양성을 이해하고 존중하는 것은 세계 시민의 자세입니다.",
+    "source": {
+      "file": "6-2국제사회의모습과공존노력.pdf",
+      "page": 112,
+      "pdfPage": 5
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-18",
+    "statement": "동북 공정은 우리나라와 일본 사이의 역사 갈등이다.",
+    "correct": "X",
+    "topicId": "china",
+    "explanation": "정답은 X입니다. 동북 공정은 중국과의 역사 갈등입니다. 일본과의 갈등과 혼동하지 마세요.",
+    "source": {
+      "file": "6-3우리나라의국가간갈등.pdf",
+      "page": 115,
+      "pdfPage": 2
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-19",
+    "statement": "동해 표기 문제는 우리나라와 일본 사이의 갈등 사례이다.",
+    "correct": "O",
+    "topicId": "japan",
+    "explanation": "정답은 O입니다. 자료는 동해 표기 문제를 일본과의 갈등 사례로 제시합니다.",
+    "source": {
+      "file": "6-3우리나라의국가간갈등.pdf",
+      "page": 115,
+      "pdfPage": 2
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-20",
+    "statement": "국가 간 갈등 해결은 정부만의 역할이므로 시민단체는 참여할 필요가 없다.",
+    "correct": "X",
+    "topicId": "civil",
+    "explanation": "정답은 X입니다. 시민단체의 홍보·교육과 국제 활동, 학자들의 공동 연구도 갈등 해결에 기여합니다.",
+    "source": {
+      "file": "6-3우리나라의국가간갈등.pdf",
+      "page": 116,
+      "pdfPage": 3
+    },
+    "difficulty": "하",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-21",
+    "statement": "오랫동안 적대 관계였던 국가들도 자국의 이익에 따라 협력 관계를 맺을 수 있다.",
+    "correct": "O",
+    "topicId": "interest",
+    "explanation": "정답은 O입니다. 우호·적대 관계가 언제나 고정되는 것은 아니며 국가 이익에 따라 관계가 달라질 수 있습니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "중",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-22",
+    "statement": "정부 간 국제기구와 국제 비정부 기구는 회원이 누구인지에 따라 구분할 수 있다.",
+    "correct": "O",
+    "topicId": "ngo",
+    "explanation": "정답은 O입니다. 정부 간 기구는 각국 정부, 국제 비정부 기구는 국경을 넘어 활동하는 개인·민간단체를 회원으로 합니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 106,
+      "pdfPage": 5
+    },
+    "difficulty": "중",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-23",
+    "statement": "그린피스와 다국적 기업 사이의 환경 갈등은 국제 사회의 갈등이 국가 사이에서만 발생하는 것은 아님을 보여 준다.",
+    "correct": "O",
+    "topicId": "competition",
+    "explanation": "정답은 O입니다. 국제기구·다국적 기업 등 여러 행위 주체의 이해관계에서도 갈등이 나타납니다.",
+    "source": {
+      "file": "6-2국제사회의모습과공존노력.pdf",
+      "page": 109,
+      "pdfPage": 2
+    },
+    "difficulty": "중",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-24",
+    "statement": "공적 개발 원조(ODA)는 개발 도상국의 경제 발전과 복지 증진에 도움을 주는 활동이다.",
+    "correct": "O",
+    "topicId": "cooperation",
+    "explanation": "정답은 O입니다. ODA는 개발 도상국의 경제 성장과 복지에 기여하는 국제 협력 방식입니다.",
+    "source": {
+      "file": "6-2국제사회의모습과공존노력.pdf",
+      "page": 110,
+      "pdfPage": 3
+    },
+    "difficulty": "중",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-25",
+    "statement": "정부가 전문 기관을 통해 갈등 관련 자료를 수집·연구하고 객관적 근거를 제시하는 것은 바람직한 갈등 해결 노력이다.",
+    "correct": "O",
+    "topicId": "government",
+    "explanation": "정답은 O입니다. 자료 수집·연구와 객관적 근거 제시는 정부가 갈등을 평화적으로 해결하기 위해 하는 활동입니다.",
+    "source": {
+      "file": "6-3우리나라의국가간갈등.pdf",
+      "page": 116,
+      "pdfPage": 3
+    },
+    "difficulty": "중",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-26",
+    "statement": "국제 사회에 중앙 정부가 없다는 것은 국제법과 국제기구도 국가의 행동에 아무런 영향을 주지 못한다는 뜻이다.",
+    "correct": "X",
+    "topicId": "central",
+    "explanation": "정답은 X입니다. 중앙 정부의 부재와 국제 규범의 영향력 부재는 다릅니다. 국제법·국제기구·세계 여론은 일정한 제약을 줄 수 있습니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "상",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-27",
+    "statement": "국가들은 원칙적으로 평등한 주권을 가지면서도 현실에서는 국력에 따라 영향력의 차이를 보일 수 있다.",
+    "correct": "O",
+    "topicId": "power",
+    "explanation": "정답은 O입니다. 원칙적 주권 평등과 현실의 힘의 논리는 서로 다른 차원의 설명이므로 함께 성립할 수 있습니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 105,
+      "pdfPage": 4
+    },
+    "difficulty": "상",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-28",
+    "statement": "다국적 기업은 주권 국가가 아니므로 경제 규모가 커져도 국제 관계에는 영향을 미칠 수 없다.",
+    "correct": "X",
+    "topicId": "multinational",
+    "explanation": "정답은 X입니다. 국제 관계의 행위 주체가 되기 위해 반드시 주권 국가일 필요는 없습니다. 다국적 기업은 경제력을 바탕으로 큰 영향을 줄 수 있습니다.",
+    "source": {
+      "file": "6-1국제사회의이해.pdf",
+      "page": 107,
+      "pdfPage": 6
+    },
+    "difficulty": "상",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-29",
+    "statement": "국가가 자국의 이익을 추구한다는 사실과 재난 피해 국가를 돕는 외교 정책을 펼친다는 사실은 함께 나타날 수 있다.",
+    "correct": "O",
+    "topicId": "diplomacy",
+    "explanation": "정답은 O입니다. 외교는 자국의 이익을 보호·증진하면서 국제 공존에도 기여할 수 있습니다. 자국 이익 추구가 모든 국제 협력을 배제하는 것은 아닙니다.",
+    "source": {
+      "file": "6-2국제사회의모습과공존노력.pdf",
+      "page": 111,
+      "pdfPage": 4
+    },
+    "difficulty": "상",
+    "active": true
+  },
+  {
+    "id": "unit6-ox-30",
+    "statement": "시민단체가 국민에게 갈등의 실태를 알리고 학자들이 공동 연구로 사실을 밝히는 활동은 정부의 평화적 외교와 함께 갈등 해결에 기여할 수 있다.",
+    "correct": "O",
+    "topicId": "civil",
+    "explanation": "정답은 O입니다. 정부와 시민 사회의 역할은 서로 배타적이지 않습니다. 홍보·교육·연구와 외교가 객관적 근거 및 협력을 바탕으로 함께 이루어질 수 있습니다.",
+    "source": {
+      "file": "6-3우리나라의국가간갈등.pdf",
+      "page": 116,
+      "pdfPage": 3
+    },
+    "difficulty": "상",
+    "active": true
+  }
+]

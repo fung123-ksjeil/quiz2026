@@ -19,7 +19,25 @@ def essay_suggestion(answer):
   return 3,'두 차원 모두 작성하여 기본 3점을 제안합니다. 다른 타당한 표현은 교사가 상향 조정할 수 있습니다.'
  if any(written):return (2 if any(matches) else 1),'한 차원만 작성했습니다. 교사가 내용을 확인해 주세요.'
  return 0,'두 차원의 답안이 비어 있습니다.'
-def grade(answers,manual=None):
- items=[{'id':i+1,'answer':answers.get(str(i+1)),'correct':key,'score':int(answers.get(str(i+1))==key)} for i,key in enumerate(KEY)]
- objective=sum(q['score'] for q in items);suggestion,reason=essay_suggestion(answers.get('16'));essay=manual if manual is not None else suggestion
- return {'items':items,'objective':objective,'suggestedEssay':suggestion,'essay':essay,'manual':manual is not None,'reason':reason,'total':objective+essay,'maximum':20}
+def grade(answers,manual=None,questions=None,manual_scores=None):
+ if questions is None:
+  questions=[{'id':i+1,'options':['']*5,'correct':key,'points':1} for i,key in enumerate(KEY)]+[{'id':16,'options':[],'points':5,'rubric':'international'}]
+ items=[];essays=[];manual_scores=manual_scores or {}
+ for q in questions:
+  identifier=str(q['id']);points=q.get('points',1)
+  if q.get('options'):
+   items.append({'id':q['id'],'answer':answers.get(identifier),'correct':q['correct'],'score':points if answers.get(identifier)==q['correct'] else 0,'maximum':points})
+  else:
+   answer=answers.get(identifier)
+   if q.get('rubric','international')=='international':suggestion,reason=essay_suggestion(answer)
+   else:
+    parts=essay_parts(answer);written=[bool(parts[k].strip()) for k in FIELDS]
+    hits=[any(word.replace(' ','') in parts[k].replace(' ','') for word in q.get('keywords',{}).get(k,[])) for k in FIELDS]
+    suggestion=(5 if all(hits) else 4 if any(hits) else 3) if all(written) else (2 if any(hits) else 1) if any(written) else 0
+    reason='두 답란의 작성 여부와 교사가 입력한 핵심어를 기준으로 제안했습니다. 예상 답안과 문맥을 교사가 확인해 주세요.'
+   suggestion=round(suggestion*points/5)
+   edited=manual_scores.get(identifier,manual if q['id']==16 else None)
+   final=min(points,max(0,edited)) if edited is not None else suggestion
+   essays.append({'id':q['id'],'suggested':suggestion,'score':final,'maximum':points,'manual':edited is not None,'reason':reason,'expected':q.get('expected',{}),'fields':q.get('essayFields',[{'key':'government','label':'1) 답안'},{'key':'citizen','label':'2) 답안'}])})
+ objective=sum(i['score'] for i in items);essay=sum(e['score'] for e in essays)
+ return {'items':items,'essays':essays,'objective':objective,'objectiveMaximum':sum(i['maximum'] for i in items),'essay':essay,'essayMaximum':sum(e['maximum'] for e in essays),'suggestedEssay':sum(e['suggested'] for e in essays),'manual':any(e['manual'] for e in essays),'reason':' '.join(e['reason'] for e in essays),'total':objective+essay,'maximum':sum(q.get('points',1) for q in questions)}

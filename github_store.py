@@ -1,5 +1,5 @@
 """Encrypted snapshots on a separate GitHub data branch; no client-side credentials."""
-import base64,hashlib,json,os,re,time,urllib.request,urllib.error
+import base64,hashlib,json,os,re,time,zlib,urllib.request,urllib.error
 from contextlib import contextmanager
 class StorageError(Exception):pass
 class GitHubStore:
@@ -37,13 +37,23 @@ class GitHubStore:
   if record.get('encoding')!='base64' or not record.get('content'):raise StorageError('Answer snapshot is too large or unsupported; archive older quiz data.')
   self.sha=record['sha']
   try:
-   value=json.loads(self.cipher.decrypt(base64.b64decode(record['content'])))
+   value=self.decode_snapshot(base64.b64decode(record['content']))
    if value.get('version')!=1 or not isinstance(value.get('classes'),list) or not isinstance(value.get('students'),list):raise ValueError()
    return value
   except Exception:raise StorageError('Unable to decrypt the answer snapshot. Verify the original QUIZ_DATA_KEY; do not replace it.') from None
+ def encode_snapshot(self,value):
+  plain=json.dumps(value,ensure_ascii=False,separators=(',',':')).encode()
+  if len(plain)>32*1024*1024:raise StorageError('The quiz archive exceeds the supported size.')
+  return self.cipher.encrypt(b'QZ2\0'+zlib.compress(plain,9))
+ def decode_snapshot(self,encrypted):
+  plain=self.cipher.decrypt(encrypted)
+  if plain.startswith(b'QZ2\0'):
+   decoder=zlib.decompressobj();plain=decoder.decompress(plain[4:],32*1024*1024+1)
+   if len(plain)>32*1024*1024 or decoder.unconsumed_tail or not decoder.eof:raise StorageError('The quiz archive is too large or corrupt.')
+  return json.loads(plain)
  def save(self,value):
   if not self.enabled:return
-  encrypted=self.cipher.encrypt(json.dumps(value,ensure_ascii=False,separators=(',',':')).encode())
+  encrypted=self.encode_snapshot(value)
   content=base64.b64encode(encrypted).decode()
   # Contents API exposes base64 data up to 1MB. Fail visibly rather than claiming a save.
   if len(content)>950000:raise StorageError('Answer snapshot is too large; export and archive older records.')

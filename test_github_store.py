@@ -54,7 +54,7 @@ class StoreTests(unittest.TestCase):
   with patch.object(s,'request',return_value={'content':{'sha':'new'}}) as call:
    s.save(payload);body=call.call_args.args[2];self.assertEqual(body['branch'],'quiz-data')
    encrypted=base64.b64decode(body['content']);self.assertNotIn('학생이름'.encode(),encrypted);self.assertNotIn(b'10301',encrypted)
-   self.assertEqual(json.loads(s.cipher.decrypt(encrypted)),payload)
+   self.assertEqual(s.decode_snapshot(encrypted),payload)
   record={'sha':'new','encoding':'base64','content':body['content']}
   responses=[{'private':False,'default_branch':'main'},{'object':{'sha':'branch'}},record]
   with patch.object(s,'request',side_effect=responses) as call:
@@ -71,6 +71,14 @@ class StoreTests(unittest.TestCase):
   s=self.store()
   with patch.object(s,'request',side_effect=[{'private':False,'default_branch':'main'},None,{'object':{'sha':'main-sha'}},{'ref':'refs/heads/quiz-data'},None]) as call:
    self.assertIsNone(s.load());creation=call.call_args_list[3];self.assertEqual(creation.args[2],{'ref':'refs/heads/quiz-data','sha':'main-sha'})
+ def test_legacy_encrypted_format(self):
+  s=self.store();value={'version':1,'classes':[],'students':[]}
+  self.assertEqual(s.decode_snapshot(s.cipher.encrypt(json.dumps(value).encode())),value)
+ def test_200_student_archive(self):
+  from content import default_exam
+  s=self.store();exam=json.dumps(default_exam(),ensure_ascii=False)
+  value={'version':1,'classes':[],'students':[{'token':str(i),'student_id':str(10000+i),'exam_json':exam,'answers':json.dumps({'16':{'government':'대화와 협력','citizen':'북한 연구 및 교육'}},ensure_ascii=False)} for i in range(200)]}
+  encrypted=s.encode_snapshot(value);self.assertLess(len(base64.b64encode(encrypted)),950000);self.assertEqual(len(s.decode_snapshot(encrypted)['students']),200)
  def test_size_limit(self):
-  with self.assertRaises(StorageError):self.store().save({'large':'x'*1000000})
+  with self.assertRaises(StorageError):self.store().save({'large':os.urandom(1000000).hex()})
 if __name__=='__main__':unittest.main(verbosity=2)

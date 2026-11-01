@@ -63,7 +63,7 @@ class ExamTests(unittest.TestCase):
   self.assertEqual(self.req(admin,'/api/admin/grade',{'recordId':record,'score':4,'note':'교사 확인'})[0],200)
   d=json.loads(self.req(admin,'/api/admin/status')[1]);g=d['students'][0]['grade']
   self.assertTrue(g['manual']);self.assertEqual(g['essay'],4);self.assertEqual(g['total'],g['objective']+4)
-  self.assertIn('준비',self.req(other,'/practice')[1].decode())
+  self.assertIn('O/X 연습문제',self.req(other,'/practice')[1].decode())
   self.proc.terminate();self.proc.wait();type(self).start()
   self.assertEqual(self.req(admin,'/api/admin/status')[0],401)
   self.assertEqual(self.req(admin,'/api/admin/login',{'password':self.password})[0],200)

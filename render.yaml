@@ -6,7 +6,7 @@ services:
     runtime: python
     branch: main
     plan: free
-    buildCommand: pip install -r requirements.txt && python3 -m py_compile server.py grading.py github_store.py
+    buildCommand: pip install -r requirements.txt && python3 -m py_compile server.py grading.py github_store.py content.py
     startCommand: python3 server.py
     healthCheckPath: /health
     envVars:
