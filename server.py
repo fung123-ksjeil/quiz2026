@@ -1,5 +1,7 @@
 """Run with ADMIN_PASSWORD set. No external dependencies."""
 from contextlib import contextmanager
+from urllib.parse import parse_qs
+from score_export import workbook
 from github_store import GitHubStore, StorageError
 import os, sqlite3, json, secrets, hashlib, hmac, time, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -61,6 +63,16 @@ def seed_content(db):
  db.execute('UPDATE students SET exam_json=? WHERE exam_json IS NULL',(json.dumps(setting(db,'exam',default_exam()),ensure_ascii=False),))
 def student_exam(row):return json.loads(row['exam_json']) if row['exam_json'] else default_exam()
 
+def student_results(db,class_id=None):
+ sql='SELECT rowid AS recordId,class_id,student_id,name,answers,submitted,events,updated,essay_score,grade_note,exam_json,manual_scores FROM students'
+ rows=db.execute(sql+(' WHERE class_id=?' if class_id is not None else '')+' ORDER BY updated DESC',(class_id,) if class_id is not None else ())
+ students=[dict(r) for r in rows]
+ for row in students:
+  row['answers']=json.loads(row['answers']);row['events']=json.loads(row['events']);row['grade']=grade(row['answers'],row['essay_score'],student_exam(row),json.loads(row['manual_scores'] or '{}')) if row['submitted'] else None
+  row['exam']=[{k:q[k] for k in ['id','options','points','essayFields'] if k in q} for q in student_exam(row)];row.pop('exam_json',None);row.pop('manual_scores',None)
+ return students
+
+
 def snapshot(db):
  return {'version':1,'savedAt':time.time(),**{table:[dict(r) for r in db.execute('SELECT '+','.join(cols)+' FROM '+table)] for table,cols in TABLE_COLUMNS.items()}}
 
@@ -110,7 +122,7 @@ if STORE.enabled:threading.Thread(target=sync_worker,daemon=True).start()
 def request_database(handler):
  global DIRTY
  with DATABASE_LOCK:
-  db=connect();handler._defer=True;handler._pending=None
+  db=connect();handler._defer=True;handler._pending=None;handler._pending_file=None
   try:
    before=db.total_changes
    yield db
@@ -120,9 +132,10 @@ def request_database(handler):
    # Classes, final submissions and manual grades must reach GitHub before success.
    if STORE.enabled and handler._force_sync:persist(db)
    handler._defer=False
-   if handler._pending:handler.send(*handler._pending)
+   if handler._pending_file:handler.send_file(*handler._pending_file)
+   elif handler._pending:handler.send(*handler._pending)
   except Exception:
-   db.rollback();handler._defer=False;handler._pending=None;raise
+   db.rollback();handler._defer=False;handler._pending=None;handler._pending_file=None;raise
   finally:db.close()
 
 class HTTPError(Exception):
@@ -137,6 +150,9 @@ class Handler(BaseHTTPRequestHandler):
   b=json.dumps(obj,ensure_ascii=False).encode();self.send_response(status);self.headers_common();self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Content-Length',str(len(b)))
   if cookie:self.send_header('Set-Cookie',cookie)
   self.end_headers();self.wfile.write(b)
+ def send_file(self,content):
+  if getattr(self,'_defer',False):self._pending_file=(content,);return
+  self.send_response(200);self.headers_common();self.send_header('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');self.send_header('Content-Disposition','attachment; filename="student-scores.xlsx"');self.send_header('Content-Length',str(len(content)));self.end_headers();self.wfile.write(content)
  def token(self,key):
   c=SimpleCookie()
   try:c.load(self.headers.get('Cookie',''));return c[key].value if key in c else ''
@@ -261,12 +277,20 @@ class Handler(BaseHTTPRequestHandler):
        count=db.execute('DELETE FROM students WHERE class_id=?',(data['classId'],)).rowcount
       else:raise HTTPError(400,'삭제 대상을 선택하세요.')
       return self.send(200,{'ok':True,'deleted':count})
+     if not post and path=='/api/admin/scores.xlsx':
+      query=parse_qs(self.path.partition('?')[2],keep_blank_values=True);values=query.get('classId',[])
+      if len(values)>1:raise HTTPError(400,'반을 하나만 선택하세요.')
+      class_id=values[0] if values and values[0] else None
+      classes=[dict(r) for r in db.execute('SELECT * FROM classes')]
+      if class_id is not None and not any(c['id']==class_id for c in classes):raise HTTPError(404,'반을 찾을 수 없습니다.')
+      students=student_results(db,class_id)
+      if not students:
+       # Keep useful headers even for a class with no attempts yet.
+       return self.send_file(workbook([],classes,setting(db,'exam',default_exam())))
+      return self.send_file(workbook(students,classes))
      if not post and path=='/api/admin/status':
       classes=[dict(r) for r in db.execute('SELECT * FROM classes ORDER BY rowid')]
-      students=[dict(r) for r in db.execute('SELECT rowid AS recordId,class_id,student_id,name,answers,submitted,events,updated,essay_score,grade_note,exam_json,manual_scores FROM students ORDER BY updated DESC')]
-      for s in students:
-       s['answers']=json.loads(s['answers']);s['events']=json.loads(s['events']);s['grade']=grade(s['answers'],s['essay_score'],student_exam(s),json.loads(s['manual_scores'] or '{}')) if s['submitted'] else None
-       s['exam']=[{k:q[k] for k in ['id','options','points','essayFields'] if k in q} for q in student_exam(s)];s.pop('exam_json',None);s.pop('manual_scores',None)
+      students=student_results(db)
       return self.send(200,{'classes':classes,'students':students,'storage':{'mode':'github' if STORE.enabled else 'local','pending':DIRTY,'error':LAST_STORAGE_ERROR}})
     if not post and path=='/api/catalog':
      exam=setting(db,'exam',default_exam());return self.send(200,{'choice':sum(bool(q['options']) for q in exam),'essay':sum(not q['options'] for q in exam)})
@@ -291,8 +315,13 @@ class Handler(BaseHTTPRequestHandler):
      return self.send(200,{'questions':[public_question(q) for q in student_exam(s)] if not s['submitted'] else [],'answers':{} if s['submitted'] else json.loads(s['answers']),'name':s['name'],'studentId':s['student_id'],'submitted':s['submitted'],'pendingSync':s['token'] in PENDING_SUBMISSIONS})
     if post and path in ['/api/answers','/api/submit','/api/event']:
      s=self.student(db)
+     sid=s['student_id'];name=s['name']
+     if path=='/api/submit':
+      sid=data.get('studentId',sid);name=data.get('name',name)
+      if not all(isinstance(value,str) and value.strip() and len(value)<=40 for value in [sid,name]):raise HTTPError(400,'학번과 이름을 확인하세요 (각 40자 이내).')
+      sid=sid.strip();name=name.strip()
      if s['submitted']:
-      if path=='/api/submit' and data.get('answers')==json.loads(s['answers']):return self.send(200,{'ok':True})
+      if path=='/api/submit' and sid==s['student_id'] and name==s['name'] and data.get('answers')==json.loads(s['answers']):return self.send(200,{'ok':True})
       raise HTTPError(409,'이미 제출한 답안입니다.')
      if path=='/api/event':
       kind=data.get('kind')
@@ -318,7 +347,7 @@ class Handler(BaseHTTPRequestHandler):
         if not q['options'] and isinstance(essay,dict) and any(not essay.get(f['key'],'').strip() for f in q.get('essayFields',[])):raise HTTPError(400,'서술형의 두 답안을 모두 작성해 주세요.')
        submitted=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())
       if submitted and STORE.enabled:PENDING_SUBMISSIONS.add(s['token'])
-      db.execute('UPDATE students SET answers=?,submitted=?,updated=? WHERE token=?',(json.dumps(answers,ensure_ascii=False),submitted,time.time(),s['token']))
+      db.execute('UPDATE students SET answers=?,submitted=?,updated=?,student_id=?,name=? WHERE token=?',(json.dumps(answers,ensure_ascii=False),submitted,time.time(),sid,name,s['token']))
      return self.send(200,{'ok':True})
    # Only these files are public. Never serve questions.json, SQLite, source, or legacy HTML.
    files={'/':'index.html','/admin':'admin.html','/admin/questions':'questions_admin.html','/practice':'practice.html','/app.js':'app.js','/admin.js':'admin.js','/editor.js':'editor.js','/practice.js':'practice.js','/style.css':'style.css'}

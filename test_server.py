@@ -19,7 +19,7 @@ class ExamTests(unittest.TestCase):
  def tearDownClass(cls):cls.proc.terminate();cls.proc.wait();cls.tmp.cleanup()
  def client(self):return urllib.request.build_opener(urllib.request.ProxyHandler({}),urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
  def req(self,c,path,data=None,headers=None):
-  req=urllib.request.Request(self.base+urllib.parse.quote(path),data=json.dumps(data).encode() if data is not None else None,headers={'Content-Type':'application/json',**(headers or {})})
+  req=urllib.request.Request(self.base+urllib.parse.quote(path,safe='/?=&'),data=json.dumps(data).encode() if data is not None else None,headers={'Content-Type':'application/json',**(headers or {})})
   try:
    with c.open(req) as r:return r.status,r.read()
   except urllib.error.HTTPError as e:return e.code,e.read()
