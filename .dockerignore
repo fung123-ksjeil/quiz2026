@@ -1,0 +1,6 @@
+.git
+.data
+__pycache__
+.env
+admin_auth.json
+*.zip
