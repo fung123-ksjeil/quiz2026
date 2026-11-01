@@ -42,7 +42,7 @@ function render(){
    if(typeof current==='string'&&current.trim()){const legacy=document.createElement('p');legacy.className='passage';legacy.textContent='이전에 작성한 통합 답안: '+current+' — 아래 두 입력란으로 나누어 작성해 주세요.';area.append(legacy);}
    for(const f of q.essayFields){
     const label=document.createElement('label');label.className='essay-label';label.textContent=f.label;
-    const input=document.createElement('textarea');input.name=`answer${q.id}_${f.key}`;input.value=typeof current==='object'?current?.[f.key]||'':'';input.maxLength=10000;input.placeholder=f.label+'에 대한 답안을 입력하세요.';
+    const input=document.createElement('textarea');input.name=`answer${q.id}_${f.key}`;input.value=typeof current==='object'?current?.[f.key]||'':'';input.maxLength=10000;
     input.addEventListener('input',()=>{if(!state.answers[q.id]||typeof state.answers[q.id]!=='object')state.answers[q.id]={};state.answers[q.id][f.key]=input.value;save();});label.append(input);area.append(label);
    }
   }
